@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desafio LoL A-Z — Rastreador Hextech</title>
+
+  <!-- Google Fonts: Cinzel (estética épica LoL/Hextech) e Inter (leitura limpa) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            hextech: {
+              bg: '#010A13',
+              card: '#091428',
+              cardHover: '#0E1F3D',
+              darkGold: '#785A28',
+              gold: '#C89B3C',
+              goldLight: '#F0E6D2',
+              cyan: '#0AC8B9',
+              cyanDark: '#005A82',
+              border: '#1E282D'
+            }
+          },
+          fontFamily: {
+            display: ['Cinzel', 'serif'],
+            sans: ['Inter', 'sans-serif']
+          },
+          boxShadow: {
+            'hextech-gold': '0 0 18px rgba(200, 170, 110, 0.25)',
+            'hextech-cyan': '0 0 20px rgba(10, 200, 185, 0.35)',
+            'hextech-card': '0 8px 24px rgba(0, 0, 0, 0.65)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Estilos base e textura sutil de fundo Hextech */
+    body {
+      background-color: #010A13;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(10, 200, 185, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(200, 170, 110, 0.06) 0%, transparent 40%),
+        linear-gradient(180deg, #010A13 0%, #04101E 100%);
+      color: #F0E6D2;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Barra de rolagem personalizada estilo Hextech */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #010A13;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #785A28;
+      border-radius: 9999px;
+      border: 1px solid #010A13;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #C8AA6E;
+    }
+
+    /* Efeito de brilho metálico dourado nas bordas */
+    .hextech-border {
+      border: 1px solid rgba(200, 170, 110, 0.45);
+      box-shadow: inset 0 0 12px rgba(200, 170, 110, 0.06);
+    }
+    .hextech-border-strong {
+      border: 1px solid #C8AA6E;
+      box-shadow: 0 0 16px rgba(200, 170, 110, 0.2), inset 0 0 14px rgba(10, 200, 185, 0.08);
+    }
+
+    /* Animação suave ao marcar campeão */
+    @keyframes pulseCheck {
+      0% { transform: scale(0.96); }
+      50% { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+    .animate-check {
+      animation: pulseCheck 0.28s ease-out;
+    }
+
+    @keyframes highlightJump {
+      0% { box-shadow: 0 0 0 3px rgba(10, 200, 185, 0.9), 0 0 25px rgba(10, 200, 185, 0.6); }
+      100% { box-shadow: 0 0 0 0 rgba(10, 200, 185, 0); }
+    }
+    .animate-jump-highlight {
+      animation: highlightJump 1.4s ease-out;
+    }
+
+    /* Gradiente de barra de progresso Hextech */
+    .hextech-progress-fill {
+      background: linear-gradient(90deg, #005A82 0%, #0AC8B9 65%, #C8AA6E 100%);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-hextech-cyan selection:text-hextech-bg">
+
+  <!-- ==================== CABEÇALHO PRINCIPAL ==================== -->
+  <header class="sticky top-0 z-30 bg-hextech-bg/90 backdrop-blur-md border-b border-hextech-gold/30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <!-- Marca / Título -->
+      <div class="flex items-center gap-3">
+        <!-- Ícone Geométrico Hextech SVG -->
+        <div class="w-10 h-10 rounded-lg bg-hextech-card border border-hextech-gold flex items-center justify-center shadow-hextech-gold shrink-0">
+          <svg class="w-6 h-6 text-hextech-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 21 7 21 17 12 22 3 17 3 7 12 2"></polygon>
+            <circle cx="12" cy="12" r="3" class="text-hextech-gold" stroke="currentColor"></circle>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display text-lg sm:text-2xl font-bold tracking-wider text-hextech-goldLight uppercase">
+              Desafio LoL <span class="text-hextech-cyan">A–Z</span>
+            </h1>
+            <span id="patchBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-hextech-card border border-hextech-gold/40 text-hextech-gold">
+              Carregando...
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">
+            Jornada de campeões em ordem alfabética • Progresso salvo automaticamente
+          </p>
+        </div>
+      </div>
+
+      <!-- Ações Rápidas do Cabeçalho -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Botão de Som Hextech -->
+        <button
+          id="soundToggleBtn"
+          type="button"
+          title="Alternar efeitos sonoros"
+          class="p-2.5 rounded-lg bg-hextech-card hover:bg-hextech-cardHover border border-hextech-gold/40 text-hextech-gold hover:text-hextech-cyan transition cursor-pointer"
+          aria-label="Alternar efeitos sonoros"
+        >
+          <svg id="soundOnIcon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="soundOffIcon" class="w-5 h-5 hidden text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <!-- Botão Exportar / Importar Progresso -->
+        <button
+          id="openSyncModalBtn"
+          type="button"
+          class="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-gradient-to-r from-hextech-card to-[#0F2442] hover:from-[#0F2442] hover:to-[#143057] border border-hextech-gold text-hextech-goldLight text-xs sm:text-sm font-semibold shadow-hextech-gold transition cursor-pointer"
+        >
+          <svg class="w-4 h-4 text-hextech-cyan shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Exportar / Importar</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- 1. PLACAR COMPARATIVO (JOGADOR 1 VS JOGADOR 2) -->
+    <section aria-label="Placar Comparativo" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Card Jogador 1 -->
+      <div
+        id="scoreCardP1"
+        onclick="switchActivePlayer('p1')"
+        class="relative rounded-xl bg-hextech-card p-4 sm:p-5 transition-all duration-200 cursor-pointer hextech-border-strong shadow-hextech-card"
+      >
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded bg-hextech-cyan/15 text-hextech-cyan border border-hextech-cyan/40 shrink-0">
+              Jogador 1
+            </span>
+            <!-- Nome editável do Jogador 1 -->
+            <div class="flex items-center gap-1.5 min-w-0" onclick="event.stopPropagation()">
+              <span
+                id="p1NameDisplay"
+                onclick="startEditingPlayerName('p1')"
+                title="Clique para editar o nome"
+                class="font-display font-bold text-base sm:text-lg text-hextech-goldLight truncate hover:text-hextech-cyan transition cursor-pointer"
+              >
+                Você
+              </span>
+              <input
+                id="p1NameInput"
+                type="text"
+                maxlength="24"
+                class="hidden bg-hextech-bg border border-hextech-cyan rounded px-2 py-0.5 text-sm font-semibold text-hextech-goldLight focus:outline-none w-36 sm:w-44"
+                onblur="finishEditingPlayerName('p1')"
+                onkeydown="handleNameKeydown(event, 'p1')"
+              />
+              <button
+                type="button"
+                onclick="startEditingPlayerName('p1')"
+                title="Editar nome do Jogador 1"
+                class="p-1 text-slate-400 hover:text-hextech-gold transition cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Badge de Liderança / Letra Atual -->
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="p1LeaderBadge" class="hidden text-[11px] font-bold px-2 py-0.5 rounded-full bg-hextech-gold/20 text-hextech-gold border border-hextech-gold/50">
+              ★ Líder
+            </span>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-hextech-bg border border-hextech-gold/40 text-hextech-gold">
+              Letra: <strong id="p1CurrentLetter" class="text-hextech-cyan">A</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Métricas e Barra de Progresso P1 -->
+        <div class="flex items-baseline justify-between text-xs sm:text-sm mb-2">
+          <span class="text-slate-300">
+            Concluídos: <strong id="p1CountText" class="text-hextech-goldLight font-bold">0 / 0</strong>
+          </span>
+          <span id="p1PercentText" class="font-bold text-hextech-cyan">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-hextech-bg rounded-full overflow-hidden border border-hextech-gold/25">
+          <div id="p1ProgressBar" class="h-full hextech-progress-fill transition-all duration-500 rounded-full" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Card Jogador 2 -->
+      <div
+        id="scoreCardP2"
+        onclick="switchActivePlayer('p2')"
+        class="relative rounded-xl bg-hextech-card p-4 sm:p-5 transition-all duration-200 cursor-pointer hextech-border opacity-85 hover:opacity-100 shadow-hextech-card"
+      >
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded bg-hextech-gold/15 text-hextech-gold border border-hextech-gold/40 shrink-0">
+              Jogador 2
+            </span>
+            <!-- Nome editável do Jogador 2 -->
+            <div class="flex items-center gap-1.5 min-w-0" onclick="event.stopPropagation()">
+              <span
+                id="p2NameDisplay"
+                onclick="startEditingPlayerName('p2')"
+                title="Clique para editar o nome"
+                class="font-display font-bold text-base sm:text-lg text-hextech-goldLight truncate hover:text-hextech-cyan transition cursor-pointer"
+              >
+                Amigo
+              </span>
+              <input
+                id="p2NameInput"
+                type="text"
+                maxlength="24"
+                class="hidden bg-hextech-bg border border-hextech-cyan rounded px-2 py-0.5 text-sm font-semibold text-hextech-goldLight focus:outline-none w-36 sm:w-44"
+                onblur="finishEditingPlayerName('p2')"
+                onkeydown="handleNameKeydown(event, 'p2')"
+              />
+              <button
+                type="button"
+                onclick="startEditingPlayerName('p2')"
+                title="Editar nome do Jogador 2"
+                class="p-1 text-slate-400 hover:text-hextech-gold transition cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Badge de Liderança / Letra Atual -->
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="p2LeaderBadge" class="hidden text-[11px] font-bold px-2 py-0.5 rounded-full bg-hextech-gold/20 text-hextech-gold border border-hextech-gold/50">
+              ★ Líder
+            </span>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-hextech-bg border border-hextech-gold/40 text-hextech-gold">
+              Letra: <strong id="p2CurrentLetter" class="text-hextech-cyan">A</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Métricas e Barra de Progresso P2 -->
+        <div class="flex items-baseline justify-between text-xs sm:text-sm mb-2">
+          <span class="text-slate-300">
+            Concluídos: <strong id="p2CountText" class="text-hextech-goldLight font-bold">0 / 0</strong>
+          </span>
+          <span id="p2PercentText" class="font-bold text-hextech-cyan">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-hextech-bg rounded-full overflow-hidden border border-hextech-gold/25">
+          <div id="p2ProgressBar" class="h-full hextech-progress-fill transition-all duration-500 rounded-full" style="width: 0%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ABAS DE SELEÇÃO DO JOGADOR ATIVO + CARD DESTAQUE "PRÓXIMO CAMPEÃO" -->
+    <section class="rounded-2xl bg-hextech-card hextech-border p-4 sm:p-6 shadow-hextech-card space-y-5">
+      <!-- Barra de Abas para alternar entre Jogador 1 e Jogador 2 -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-hextech-gold/20 pb-4">
+        <div class="flex items-center gap-2 bg-hextech-bg p-1.5 rounded-xl border border-hextech-gold/30 w-full sm:w-auto">
+          <button
+            id="tabBtnP1"
+            type="button"
+            onclick="switchActivePlayer('p1')"
+            class="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer bg-gradient-to-r from-hextech-cyanDark to-hextech-cyan text-hextech-bg shadow-hextech-cyan"
+          >
+            <span id="tabLabelP1">Jogador 1 (Você)</span>
+          </button>
+          <button
+            id="tabBtnP2"
+            type="button"
+            onclick="switchActivePlayer('p2')"
+            class="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer text-slate-300 hover:text-hextech-goldLight"
+          >
+            <span id="tabLabelP2">Jogador 2 (Amigo)</span>
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-400">
+          Editando lista de: <strong id="activePlayerIndicator" class="text-hextech-cyan font-semibold">Você</strong>
+        </p>
+      </div>
+
+      <!-- Destaque: Próximo Campeão (Ordem A-Z) -->
+      <div id="nextChampionContainer" class="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#061120] via-[#0B1D36] to-[#061120] border border-hextech-gold/60 p-4 sm:p-5">
+        <!-- Detalhe decorativo de canto -->
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-4 w-full md:w-auto">
+            <!-- Retrato do Próximo Campeão -->
+            <div class="relative shrink-0">
+              <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-hextech-cyan shadow-hextech-cyan bg-hextech-bg">
+                <img
+                  id="nextChampImg"
+                  src=""
+                  alt="Próximo Campeão"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              <span
+                id="nextChampLetterBadge"
+                class="absolute -top-2 -left-2 w-7 h-7 rounded-lg bg-hextech-gold text-hextech-bg font-display font-extrabold text-sm flex items-center justify-center shadow-md"
+              >
+                A
+              </span>
+            </div>
+
+            <!-- Informações do Próximo Campeão -->
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <span id="nextChampHeaderLabel" class="text-[11px] font-bold uppercase tracking-widest text-hextech-cyan">
+                  Próximo Campeão (Ordem A–Z)
+                </span>
+                <span id="nextChampOrderBadge" class="text-[11px] px-2 py-0.5 rounded bg-hextech-bg/80 border border-hextech-gold/30 text-hextech-gold">
+                  #1 de 170
+                </span>
+              </div>
+              <h2 id="nextChampName" class="font-display text-xl sm:text-2xl font-bold text-hextech-goldLight truncate">
+                Carregando...
+              </h2>
+              <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                <p id="nextChampTitle" class="text-xs sm:text-sm text-slate-300 capitalize truncate">
+                  Preparando invocadores...
+                </p>
+                <div id="nextChampLanesBadges" class="flex items-center gap-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão Rápido: Marcar como Jogado -->
+          <div class="w-full md:w-auto shrink-0">
+            <button
+              id="markNextChampBtn"
+              type="button"
+              onclick="completeNextChampion()"
+              class="w-full md:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#089E92] to-hextech-cyan hover:brightness-110 active:scale-[0.99] text-hextech-bg font-bold text-sm sm:text-base tracking-wide shadow-hextech-cyan transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Marcar como Jogado</span>
+              <span class="text-lg leading-none">✓</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner de Rota 100% Concluída (quando uma rota específica está filtrada e completa) -->
+      <div id="laneCompletedBanner" class="hidden rounded-xl bg-gradient-to-r from-[#071F2E] via-hextech-card to-[#071F2E] border border-hextech-cyan/70 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3 text-center sm:text-left">
+          <div class="w-11 h-11 rounded-xl bg-hextech-cyan/15 border border-hextech-cyan flex items-center justify-center text-xl shrink-0">
+            🏅
+          </div>
+          <div>
+            <h3 id="laneCompletedTitle" class="font-display text-base sm:text-lg font-bold text-hextech-cyan">
+              Rota Concluída!
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-300">
+              Você já jogou com todos os campeões desta rota! Escolha outra rota abaixo para continuar.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="setLaneFilter('ALL')"
+          class="px-4 py-2 rounded-xl bg-hextech-bg hover:bg-hextech-cardHover border border-hextech-gold text-hextech-goldLight text-xs font-bold transition shrink-0 cursor-pointer"
+        >
+          Ver Todas as Rotas
+        </button>
+      </div>
+
+      <!-- Banner de Vitória Total (Aparece apenas quando 100% de todos os campeões forem concluídos) -->
+      <div id="allCompletedBanner" class="hidden rounded-xl bg-gradient-to-r from-hextech-darkGold/40 via-hextech-card to-hextech-darkGold/40 border border-hextech-gold p-5 text-center space-y-2">
+        <div class="text-3xl">🏆</div>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-hextech-gold">
+          Desafio A–Z Concluído com Sucesso!
+        </h2>
+        <p class="text-sm text-hextech-goldLight/90 max-w-xl mx-auto">
+          Incrível! Todos os campeões de A a Z foram jogados e marcados neste perfil. Compartilhe seu código de vitória com seu amigo!
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. BARRA DE ROTAS, MODO DE VISUALIZAÇÃO, BUSCA E NAVEGAÇÃO RÁPIDA A-Z -->
+    <section aria-label="Filtros por Rota e Navegação Alfabética" class="rounded-2xl bg-hextech-card hextech-border p-4 sm:p-5 space-y-4">
+      <!-- Barra de Seleção de Rotas (Topo, Selva, Meio, Atirador, Suporte) -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-hextech-gold">
+            Filtrar por Rota (Progresso do Jogador Ativo)
+          </span>
+          <span id="activeLaneSummary" class="text-[11px] text-slate-400">
+            Exibindo todas as rotas
+          </span>
+        </div>
+        <div id="laneFilterBar" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <!-- Botões de rota gerados dinamicamente via JavaScript -->
+        </div>
+      </div>
+
+      <!-- Linha Intermediária: Busca + Seletor de Modo de Visualização + Filtros de Status -->
+      <div class="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 pt-1 border-t border-hextech-gold/15">
+        <!-- Campo de Busca -->
+        <div class="relative flex-1 max-w-md">
+          <svg class="w-4 h-4 text-hextech-gold absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Buscar campeão pelo nome..."
+            oninput="handleSearchInput(this.value)"
+            class="w-full pl-10 pr-9 py-2.5 rounded-xl bg-hextech-bg border border-hextech-gold/40 focus:border-hextech-cyan text-sm text-hextech-goldLight placeholder-slate-500 focus:outline-none transition"
+          />
+          <button
+            id="clearSearchBtn"
+            type="button"
+            onclick="clearSearch()"
+            title="Limpar busca"
+            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-hextech-gold p-1 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Seletor de Modo de Visualização: Grade A-Z vs Separado por Rota -->
+          <div class="flex items-center gap-1 bg-hextech-bg p-1 rounded-xl border border-hextech-gold/35" role="group" aria-label="Modo de visualização">
+            <button
+              id="viewGridBtn"
+              type="button"
+              onclick="setViewMode('grid')"
+              class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer bg-hextech-cyan text-hextech-bg shadow-hextech-cyan whitespace-nowrap"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+              </svg>
+              <span>Grade A–Z</span>
+            </button>
+            <button
+              id="viewLanesBtn"
+              type="button"
+              onclick="setViewMode('lanes')"
+              class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer text-slate-300 hover:text-hextech-goldLight whitespace-nowrap"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+              <span>Separado por Rota</span>
+            </button>
+          </div>
+
+          <!-- Filtros Rápidos: Todos / Pendentes / Concluídos -->
+          <div class="flex items-center gap-1 bg-hextech-bg p-1 rounded-xl border border-hextech-gold/30 overflow-x-auto">
+            <button
+              id="filterAllBtn"
+              type="button"
+              onclick="setStatusFilter('all')"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer bg-hextech-gold text-hextech-bg whitespace-nowrap"
+            >
+              Todos (<span id="countAll">0</span>)
+            </button>
+            <button
+              id="filterPendingBtn"
+              type="button"
+              onclick="setStatusFilter('pending')"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer text-slate-300 hover:text-hextech-goldLight whitespace-nowrap"
+            >
+              Pendentes (<span id="countPending">0</span>)
+            </button>
+            <button
+              id="filterCompletedBtn"
+              type="button"
+              onclick="setStatusFilter('completed')"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer text-slate-300 hover:text-hextech-goldLight whitespace-nowrap"
+            >
+              Concluídos (<span id="countCompleted">0</span>)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Navegação Rápida por Letras (A até Z) -->
+      <div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Navegação Rápida A–Z (Clique para ir até a letra • Dourado = 100% concluída na rota)
+          </span>
+          <button
+            id="resetLetterFilterBtn"
+            type="button"
+            onclick="setLetterFilter('ALL')"
+            class="hidden text-xs text-hextech-cyan hover:underline font-medium cursor-pointer"
+          >
+            Mostrar todas as letras
+          </button>
+        </div>
+        <div id="alphabetBar" class="flex flex-wrap gap-1.5">
+          <!-- Botões de A a Z gerados dinamicamente via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. LISTA / GRID DE CAMPEÕES -->
+    <section aria-label="Lista de Campeões">
+      <!-- Estado de Carregamento -->
+      <div id="loadingState" class="py-16 text-center space-y-3">
+        <div class="w-12 h-12 mx-auto rounded-full border-2 border-hextech-gold border-t-hextech-cyan animate-spin"></div>
+        <p class="font-display text-hextech-gold text-base tracking-wide">
+          Consultando arquivos de Runeterra...
+        </p>
+      </div>
+
+      <!-- Aviso de Modo Offline/Fallback (se API falhar) -->
+      <div id="fallbackNotice" class="hidden mb-4 px-4 py-3 rounded-xl bg-amber-950/50 border border-amber-500/50 text-amber-200 text-xs flex items-center justify-between gap-2">
+        <span>
+          Não foi possível conectar aos servidores da Riot Games agora. Carregamos o catálogo local completo de campeões para você continuar o desafio normalmente.
+        </span>
+        <button type="button" onclick="initApp()" class="underline font-semibold shrink-0 cursor-pointer">
+          Tentar novamente
+        </button>
+      </div>
+
+      <!-- Modo 1: Grid Alfabético Único (A–Z) -->
+      <div
+        id="championsGrid"
+        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4"
+      >
+        <!-- Cards dos campeões injetados via JavaScript -->
+      </div>
+
+      <!-- Modo 2: Agrupado em Seções Recolhíveis por Rota -->
+      <div id="lanesContainer" class="hidden space-y-5">
+        <!-- Seções Topo, Selva, Meio, Atirador e Suporte injetadas via JavaScript -->
+      </div>
+
+      <!-- Estado Vazio (Quando busca/filtro não encontra resultados) -->
+      <div id="emptyFilterState" class="hidden py-14 text-center rounded-2xl bg-hextech-card/60 border border-hextech-gold/25 space-y-3">
+        <p class="font-display text-lg text-hextech-gold">Nenhum campeão encontrado</p>
+        <p class="text-xs sm:text-sm text-slate-400">
+          Tente limpar a busca ou selecionar outra rota/filtro acima.
+        </p>
+        <button
+          type="button"
+          onclick="resetAllFilters()"
+          class="px-4 py-2 rounded-lg bg-hextech-bg border border-hextech-gold text-hextech-goldLight text-xs font-semibold hover:bg-hextech-cardHover transition cursor-pointer"
+        >
+          Limpar todos os filtros
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== RODAPÉ ==================== -->
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-8 mt-8 border-t border-hextech-gold/20 text-center text-xs text-slate-500 space-y-1">
+    <p>
+      <strong class="text-hextech-gold/80">Desafio LoL A–Z</strong> • Ferramenta criada para amigos acompanharem o desafio sem backend.
+    </p>
+    <p>
+      Dados e ícones oficiais obtidos via Riot Games Data Dragon API. Este projeto não é endossado pela Riot Games.
+    </p>
+  </footer>
+
+  <!-- ==================== MODAL: EXPORTAR / IMPORTAR / RESETAR ==================== -->
+  <div
+    id="syncModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="syncModalTitle"
+  >
+    <div class="w-full max-w-lg rounded-2xl bg-hextech-card border border-hextech-gold shadow-hextech-card overflow-hidden">
+      <!-- Cabeçalho do Modal -->
+      <div class="px-5 py-4 bg-hextech-bg border-b border-hextech-gold/30 flex items-center justify-between">
+        <h3 id="syncModalTitle" class="font-display text-lg font-bold text-hextech-goldLight">
+          Sincronizar &amp; Gerenciar Progresso
+        </h3>
+        <button
+          type="button"
+          onclick="closeSyncModal()"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-hextech-gold hover:bg-hextech-card transition cursor-pointer"
+          aria-label="Fechar modal"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Corpo do Modal -->
+      <div class="p-5 space-y-5 max-h-[82vh] overflow-y-auto">
+        <!-- Seção 1: Exportar Código -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <label for="exportCodeTextarea" class="text-xs font-bold uppercase tracking-wider text-hextech-cyan">
+              1. Exportar seu progresso (Enviar ao amigo)
+            </label>
+            <select
+              id="exportModeSelect"
+              onchange="updateExportCode()"
+              class="bg-hextech-bg border border-hextech-gold/40 rounded-lg px-2.5 py-1 text-xs text-hextech-goldLight focus:outline-none"
+            >
+              <option value="p1">Apenas Jogador 1</option>
+              <option value="p2">Apenas Jogador 2</option>
+              <option value="full">Backup Completo (Ambos)</option>
+            </select>
+          </div>
+          <p class="text-xs text-slate-400">
+            Copie o código abaixo e envie no Discord ou WhatsApp para seu amigo atualizar o placar dele:
+          </p>
+          <textarea
+            id="exportCodeTextarea"
+            readonly
+            rows="3"
+            class="w-full p-2.5 rounded-xl bg-hextech-bg border border-hextech-gold/30 text-xs font-mono text-hextech-goldLight/90 focus:outline-none resize-none"
+          ></textarea>
+          <button
+            type="button"
+            onclick="copyExportCode()"
+            class="w-full py-2.5 rounded-xl bg-gradient-to-r from-hextech-cyanDark to-hextech-cyan text-hextech-bg font-bold text-xs sm:text-sm hover:brightness-110 transition cursor-pointer"
+          >
+            Copiar Código de Progresso
+          </button>
+        </div>
+
+        <hr class="border-hextech-gold/20" />
+
+        <!-- Seção 2: Importar Código -->
+        <div class="space-y-2">
+          <label for="importCodeTextarea" class="text-xs font-bold uppercase tracking-wider text-hextech-gold">
+            2. Importar código recebido
+          </label>
+          <p class="text-xs text-slate-400">
+            Cole o código enviado pelo seu amigo (ou um backup completo) e escolha onde aplicar:
+          </p>
+          <textarea
+            id="importCodeTextarea"
+            rows="3"
+            placeholder="Cole o código aqui..."
+            class="w-full p-2.5 rounded-xl bg-hextech-bg border border-hextech-gold/40 focus:border-hextech-cyan text-xs font-mono text-hextech-goldLight placeholder-slate-600 focus:outline-none resize-none"
+          ></textarea>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onclick="importProgressCode('p2')"
+              class="py-2.5 px-3 rounded-xl bg-hextech-bg hover:bg-hextech-cardHover border border-hextech-gold text-hextech-goldLight font-semibold text-xs transition cursor-pointer"
+            >
+              Aplicar no Jogador 2 (Amigo)
+            </button>
+            <button
+              type="button"
+              onclick="importProgressCode('p1')"
+              class="py-2.5 px-3 rounded-xl bg-hextech-bg hover:bg-hextech-cardHover border border-hextech-cyan/60 text-hextech-cyan font-semibold text-xs transition cursor-pointer"
+            >
+              Aplicar no Jogador 1 (Você)
+            </button>
+          </div>
+        </div>
+
+        <hr class="border-hextech-gold/20" />
+
+        <!-- Seção 3: Resetar Desafio (Confirmação customizada em 2 etapas, sem window.confirm) -->
+        <div class="space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-rose-400 block">
+            Zona de Reinício
+          </span>
+          <div id="resetStep1">
+            <button
+              type="button"
+              onclick="showResetConfirmation()"
+              class="w-full py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 text-rose-300 text-xs font-semibold transition cursor-pointer"
+            >
+              Resetar Progresso do Desafio...
+            </button>
+          </div>
+          <div id="resetStep2" class="hidden p-3 rounded-xl bg-rose-950/60 border border-rose-500/60 space-y-2.5">
+            <p class="text-xs text-rose-200 font-medium">
+              Tem certeza? Essa ação limpará os campeões marcados. Escolha o que deseja zerar:
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onclick="executeReset('active')"
+                class="flex-1 py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition cursor-pointer"
+              >
+                Zerar Jogador Ativo
+              </button>
+              <button
+                type="button"
+                onclick="executeReset('both')"
+                class="flex-1 py-2 px-3 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
+              >
+                Zerar Ambos
+              </button>
+              <button
+                type="button"
+                onclick="hideResetConfirmation()"
+                class="py-2 px-3 rounded-lg bg-hextech-bg border border-slate-600 text-slate-300 text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EDITAR ROTAS DO CAMPEÃO ==================== -->
+  <div
+    id="editLaneModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="editLaneModalTitle"
+  >
+    <div class="w-full max-w-md rounded-2xl bg-hextech-card border border-hextech-gold shadow-hextech-card overflow-hidden">
+      <div class="px-5 py-4 bg-hextech-bg border-b border-hextech-gold/30 flex items-center justify-between">
+        <div class="flex items-center gap-3 min-w-0">
+          <img id="editLaneChampImg" src="" alt="" class="w-10 h-10 rounded-lg border border-hextech-gold object-cover shrink-0" />
+          <div class="min-w-0">
+            <h3 id="editLaneModalTitle" class="font-display text-base font-bold text-hextech-goldLight truncate">
+              Editar Rotas
+            </h3>
+            <p class="text-[11px] text-slate-400">
+              Selecione em quais rotas este campeão participa do desafio
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="closeEditLaneModal()"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-hextech-gold hover:bg-hextech-card transition cursor-pointer"
+          aria-label="Fechar modal de rotas"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div id="editLaneCheckboxes" class="grid grid-cols-1 gap-2">
+          <!-- Opções de rotas geradas via JS -->
+        </div>
+
+        <div class="flex items-center justify-between gap-2 pt-2 border-t border-hextech-gold/20">
+          <button
+            type="button"
+            onclick="restoreDefaultLanesForEditingChamp()"
+            class="px-3 py-2 rounded-xl bg-hextech-bg hover:bg-hextech-cardHover border border-slate-600 text-slate-300 text-xs font-semibold transition cursor-pointer"
+          >
+            Restaurar Padrão
+          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              onclick="closeEditLaneModal()"
+              class="px-3.5 py-2 rounded-xl bg-hextech-bg border border-hextech-gold/40 text-slate-300 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onclick="saveEditedChampionLanes()"
+              class="px-4 py-2 rounded-xl bg-gradient-to-r from-hextech-cyanDark to-hextech-cyan text-hextech-bg font-bold text-xs hover:brightness-110 transition cursor-pointer"
+            >
+              Salvar Rotas
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST DE NOTIFICAÇÃO ==================== -->
+  <div
+    id="toastBox"
+    class="fixed bottom-5 right-5 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300"
+  >
+    <div class="px-4 py-3 rounded-xl bg-hextech-card border border-hextech-cyan shadow-hextech-cyan flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-hextech-goldLight">
+      <span class="w-2 h-2 rounded-full bg-hextech-cyan animate-ping"></span>
+      <span id="toastMessage">Ação concluída!</span>
+    </div>
+  </div>
+
+  <!-- ==================== LÓGICA DA APLICAÇÃO (JAVASCRIPT) ==================== -->
+  <script>
+    /**
+     * ESTADO GLOBAL DA APLICAÇÃO
+     * Armazena a versão do patch, lista de campeões ordenada de A a Z,
+     * progresso dos dois jogadores, mapeamento personalizado de rotas e filtros ativos.
+     */
+    const STORAGE_KEY = 'desafio_lol_az_hextech_v2';
+
+    const LANES_CONFIG = [
+      {
+        key: 'top',
+        label: 'Topo',
+        short: 'Topo',
+        badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+        svg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 4h12l-3 3H7v6l-3 3V4zm16 16H8l3-3h6v-6l3-3v12z" opacity="0.35"/>
+                <path d="M4 4h12l-3 3H7v6l-3 3V4z"/>
+              </svg>`
+      },
+      {
+        key: 'jungle',
+        label: 'Selva',
+        short: 'Selva',
+        badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+        svg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C9.5 6.5 9 10.5 12 15c3-4.5 2.5-8.5 0-13zm-5.5 5C5 10.5 5.5 14 9 17.5 8 13.5 7.5 10.5 6.5 7zm11 0c-1 3.5-1.5 6.5-2.5 10.5 3.5-3.5 4-7 2.5-10.5zM8 19l4 3 4-3-4 1-4-1z"/>
+              </svg>`
+      },
+      {
+        key: 'mid',
+        label: 'Meio',
+        short: 'Meio',
+        badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/40',
+        svg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 4h7l-2.5 2.5H6.5v2L4 11V4zm16 16h-7l2.5-2.5h2v-2L20 13v7z" opacity="0.35"/>
+                <path d="M18.5 3.5L20.5 5.5 5.5 20.5 3.5 18.5 18.5 3.5z"/>
+              </svg>`
+      },
+      {
+        key: 'adc',
+        label: 'Atirador',
+        short: 'Atirador',
+        badgeClass: 'bg-rose-500/15 text-rose-300 border-rose-500/40',
+        svg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 4h12l-3 3H7v6l-3 3V4z" opacity="0.35"/>
+                <path d="M20 20H8l3-3h6v-6l3-3v12z"/>
+              </svg>`
+      },
+      {
+        key: 'sup',
+        label: 'Suporte',
+        short: 'Suporte',
+        badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/40',
+        svg: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3L8 7h3v6l1 2 1-2V7h3l-4-4zM3 9l4 4 2-1-3-3H3zm18 0h-3l-3 3 2 1 4-4zM8 15l4 6 4-6-4 2-4-2z"/>
+              </svg>`
+      }
+    ];
+
+    const LANE_MAP_BY_KEY = Object.fromEntries(LANES_CONFIG.map((l) => [l.key, l]));
+
+    const state = {
+      version: '15.2.1',
+      champions: [], // Lista ordenada: { id, name, title, imageFull, letter, defaultLanes, lanes }
+      activePlayer: 'p1', // 'p1' ou 'p2'
+      players: {
+        p1: { name: 'Você', completed: [] },
+        p2: { name: 'Amigo', completed: [] }
+      },
+      customLanes: {}, // { [championId]: ['top', 'mid'] }
+      viewMode: 'grid', // 'grid' | 'lanes'
+      collapsedLanes: {}, // { top: false, jungle: false, ... }
+      editingChampionId: null,
+      filters: {
+        lane: 'ALL',   // 'ALL' | 'top' | 'jungle' | 'mid' | 'adc' | 'sup'
+        search: '',
+        status: 'all', // 'all' | 'pending' | 'completed'
+        letter: 'ALL'  // 'ALL' ou 'A'..'Z'
+      },
+      soundEnabled: true
+    };
+
+    /**
+     * CATÁLOGO COMPLETO DE CAMPEÕES DO LEAGUE OF LEGENDS (FALLBACK OFFLINE + MAPEAMENTO OFICIAL DE ROTAS)
+     * Chaves oficiais do Riot Data Dragon com nomes em pt-BR, títulos e rotas reais no meta.
+     */
+    const CHAMPION_CATALOG = [
+      { id: 'Aatrox', name: 'Aatrox', title: 'a Espada Darkin', lanes: ['top'] },
+      { id: 'Ahri', name: 'Ahri', title: 'a Raposa de Nove Caudas', lanes: ['mid'] },
+      { id: 'Akali', name: 'Akali', title: 'a Assassina Renegada', lanes: ['mid', 'top'] },
+      { id: 'Akshan', name: 'Akshan', title: 'o Sentinela Rebelde', lanes: ['mid', 'top'] },
+      { id: 'Alistar', name: 'Alistar', title: 'o Minotauro', lanes: ['sup'] },
+      { id: 'Ambessa', name: 'Ambessa', title: 'a Matriarca da Guerra', lanes: ['top', 'jungle'] },
+      { id: 'Amumu', name: 'Amumu', title: 'a Múmia Triste', lanes: ['jungle', 'sup'] },
+      { id: 'Anivia', name: 'Anivia', title: 'a Criofênix', lanes: ['mid'] },
+      { id: 'Annie', name: 'Annie', title: 'a Criança Sombria', lanes: ['mid', 'sup'] },
+      { id: 'Aphelios', name: 'Aphelios', title: 'a Arma dos Devotos', lanes: ['adc'] },
+      { id: 'Ashe', name: 'Ashe', title: 'a Arqueira do Gelo', lanes: ['adc', 'sup'] },
+      { id: 'AurelionSol', name: 'Aurelion Sol', title: 'o Forjador de Estrelas', lanes: ['mid'] },
+      { id: 'Aurora', name: 'Aurora', title: 'a Bruxa Entre Mundos', lanes: ['mid', 'top'] },
+      { id: 'Azir', name: 'Azir', title: 'o Imperador das Areias', lanes: ['mid'] },
+      { id: 'Bard', name: 'Bardo', title: 'o Protetor Andarilho', lanes: ['sup'] },
+      { id: 'Belveth', name: "Bel'Veth", title: 'a Imperatriz do Vazio', lanes: ['jungle'] },
+      { id: 'Blitzcrank', name: 'Blitzcrank', title: 'o Grande Golem a Vapor', lanes: ['sup'] },
+      { id: 'Brand', name: 'Brand', title: 'a Vingança Flamejante', lanes: ['sup', 'jungle', 'mid'] },
+      { id: 'Braum', name: 'Braum', title: 'o Coração de Freljord', lanes: ['sup'] },
+      { id: 'Briar', name: 'Briar', title: 'a Fome Contida', lanes: ['jungle', 'top'] },
+      { id: 'Caitlyn', name: 'Caitlyn', title: 'a Xerife de Piltover', lanes: ['adc'] },
+      { id: 'Camille', name: 'Camille', title: 'a Sombra de Aço', lanes: ['top', 'sup'] },
+      { id: 'Cassiopeia', name: 'Cassiopeia', title: 'o Abraço da Serpente', lanes: ['mid', 'top'] },
+      { id: 'Chogath', name: "Cho'Gath", title: 'o Terror do Vazio', lanes: ['top', 'mid'] },
+      { id: 'Corki', name: 'Corki', title: 'o Bombardeiro Ousado', lanes: ['adc', 'mid'] },
+      { id: 'Darius', name: 'Darius', title: 'a Mão de Noxus', lanes: ['top'] },
+      { id: 'Diana', name: 'Diana', title: 'o Escárnio da Lua', lanes: ['jungle', 'mid'] },
+      { id: 'DrMundo', name: 'Dr. Mundo', title: 'o Louco de Zaun', lanes: ['top', 'jungle'] },
+      { id: 'Draven', name: 'Draven', title: 'o Carrasco de Noxus', lanes: ['adc'] },
+      { id: 'Ekko', name: 'Ekko', title: 'o Rapaz que Estilhaçou o Tempo', lanes: ['jungle', 'mid'] },
+      { id: 'Elise', name: 'Elise', title: 'a Aranha Rainha', lanes: ['jungle', 'sup'] },
+      { id: 'Evelynn', name: 'Evelynn', title: 'o Abraço da Agonia', lanes: ['jungle'] },
+      { id: 'Ezreal', name: 'Ezreal', title: 'o Explorador Pródigo', lanes: ['adc'] },
+      { id: 'Fiddlesticks', name: 'Fiddlesticks', title: 'o Terror Ancestral', lanes: ['jungle', 'sup'] },
+      { id: 'Fiora', name: 'Fiora', title: 'a Grande Duelista', lanes: ['top'] },
+      { id: 'Fizz', name: 'Fizz', title: 'o Trapaceiro das Marés', lanes: ['mid'] },
+      { id: 'Galio', name: 'Galio', title: 'o Colosso', lanes: ['mid', 'sup'] },
+      { id: 'Gangplank', name: 'Gangplank', title: 'o Terror dos Doze Mares', lanes: ['top'] },
+      { id: 'Garen', name: 'Garen', title: 'o Poder de Demacia', lanes: ['top'] },
+      { id: 'Gnar', name: 'Gnar', title: 'o Yordle Pré-Histórico', lanes: ['top'] },
+      { id: 'Gragas', name: 'Gragas', title: 'o Badernista', lanes: ['top', 'jungle', 'mid'] },
+      { id: 'Graves', name: 'Graves', title: 'o Foragido', lanes: ['jungle'] },
+      { id: 'Gwen', name: 'Gwen', title: 'a Costureira Encantada', lanes: ['top', 'jungle'] },
+      { id: 'Hecarim', name: 'Hecarim', title: 'a Sombra da Guerra', lanes: ['jungle'] },
+      { id: 'Heimerdinger', name: 'Heimerdinger', title: 'o Inventor Idolatrado', lanes: ['mid', 'top', 'sup'] },
+      { id: 'Hwei', name: 'Hwei', title: 'o Visionário', lanes: ['mid', 'sup', 'adc'] },
+      { id: 'Illaoi', name: 'Illaoi', title: 'a Sacerdotisa Cráquem', lanes: ['top'] },
+      { id: 'Irelia', name: 'Irelia', title: 'a Dançarina das Lâminas', lanes: ['top', 'mid'] },
+      { id: 'Ivern', name: 'Ivern', title: 'o Pai do Verde', lanes: ['jungle'] },
+      { id: 'Janna', name: 'Janna', title: 'a Fúria da Tormenta', lanes: ['sup'] },
+      { id: 'JarvanIV', name: 'Jarvan IV', title: 'o Exemplo de Demacia', lanes: ['jungle'] },
+      { id: 'Jax', name: 'Jax', title: 'o Grão-Mestre das Armas', lanes: ['top', 'jungle'] },
+      { id: 'Jayce', name: 'Jayce', title: 'o Defensor do Amanhã', lanes: ['top', 'mid'] },
+      { id: 'Jhin', name: 'Jhin', title: 'o Virtuoso', lanes: ['adc'] },
+      { id: 'Jinx', name: 'Jinx', title: 'o Gatilho Desenfreado', lanes: ['adc'] },
+      { id: 'KSante', name: "K'Sante", title: 'o Orgulho de Nazumah', lanes: ['top'] },
+      { id: 'Kaisa', name: "Kai'Sa", title: 'a Filha do Vazio', lanes: ['adc'] },
+      { id: 'Kalista', name: 'Kalista', title: 'a Lança da Vingança', lanes: ['adc'] },
+      { id: 'Karma', name: 'Karma', title: 'a Iluminada', lanes: ['sup', 'mid', 'top'] },
+      { id: 'Karthus', name: 'Karthus', title: 'a Voz Mortal', lanes: ['jungle', 'adc', 'mid'] },
+      { id: 'Kassadin', name: 'Kassadin', title: 'o Andarilho do Vazio', lanes: ['mid'] },
+      { id: 'Katarina', name: 'Katarina', title: 'a Lâmina Sinistra', lanes: ['mid'] },
+      { id: 'Kayle', name: 'Kayle', title: 'a Justa', lanes: ['top', 'mid'] },
+      { id: 'Kayn', name: 'Kayn', title: 'o Ceifador das Sombras', lanes: ['jungle'] },
+      { id: 'Kennen', name: 'Kennen', title: 'o Coração da Tempestade', lanes: ['top', 'mid'] },
+      { id: 'Khazix', name: "Kha'Zix", title: 'o Ceifador do Vazio', lanes: ['jungle'] },
+      { id: 'Kindred', name: 'Kindred', title: 'os Caçadores Eternos', lanes: ['jungle'] },
+      { id: 'Kled', name: 'Kled', title: 'o Cavaleiro Intratável', lanes: ['top'] },
+      { id: 'KogMaw', name: "Kog'Maw", title: 'a Boca do Abismo', lanes: ['adc'] },
+      { id: 'Leblanc', name: 'LeBlanc', title: 'a Farsante', lanes: ['mid', 'sup'] },
+      { id: 'LeeSin', name: 'Lee Sin', title: 'o Monge Cego', lanes: ['jungle'] },
+      { id: 'Leona', name: 'Leona', title: 'a Alvorada Radiante', lanes: ['sup'] },
+      { id: 'Lillia', name: 'Lillia', title: 'o Florir Receoso', lanes: ['jungle', 'top'] },
+      { id: 'Lissandra', name: 'Lissandra', title: 'a Bruxa Gélida', lanes: ['mid'] },
+      { id: 'Lucian', name: 'Lucian', title: 'o Purificador', lanes: ['adc', 'mid'] },
+      { id: 'Lulu', name: 'Lulu', title: 'a Fada Feiticeira', lanes: ['sup'] },
+      { id: 'Lux', name: 'Lux', title: 'a Dama da Luz', lanes: ['sup', 'mid'] },
+      { id: 'Malphite', name: 'Malphite', title: 'o Fragmento do Monolito', lanes: ['top', 'mid', 'sup'] },
+      { id: 'Malzahar', name: 'Malzahar', title: 'o Profeta do Vazio', lanes: ['mid'] },
+      { id: 'Maokai', name: 'Maokai', title: 'o Ente Sinistro', lanes: ['sup', 'jungle', 'top'] },
+      { id: 'MasterYi', name: 'Master Yi', title: 'o Espadachim Wuju', lanes: ['jungle'] },
+      { id: 'Mel', name: 'Mel', title: 'o Reflexo da Alma', lanes: ['mid', 'sup'] },
+      { id: 'Milio', name: 'Milio', title: 'a Chama Gentil', lanes: ['sup'] },
+      { id: 'MissFortune', name: 'Miss Fortune', title: 'a Caçadora de Recompensas', lanes: ['adc'] },
+      { id: 'Mordekaiser', name: 'Mordekaiser', title: 'o Revenã de Ferro', lanes: ['top', 'jungle'] },
+      { id: 'Morgana', name: 'Morgana', title: 'a Caída', lanes: ['sup', 'mid', 'jungle'] },
+      { id: 'Naafiri', name: 'Naafiri', title: 'a Matilha de Cem Mordidas', lanes: ['mid', 'jungle'] },
+      { id: 'Nami', name: 'Nami', title: 'a Conjuradora das Marés', lanes: ['sup'] },
+      { id: 'Nasus', name: 'Nasus', title: 'o Curador das Areias', lanes: ['top'] },
+      { id: 'Nautilus', name: 'Nautilus', title: 'o Titã das Profundezas', lanes: ['sup'] },
+      { id: 'Neeko', name: 'Neeko', title: 'a Camaleoa Curiosa', lanes: ['mid', 'sup'] },
+      { id: 'Nidalee', name: 'Nidalee', title: 'a Caçadora Bestial', lanes: ['jungle'] },
+      { id: 'Nilah', name: 'Nilah', title: 'a Alegria Irrestrita', lanes: ['adc'] },
+      { id: 'Nocturne', name: 'Nocturne', title: 'o Eterno Pesadelo', lanes: ['jungle'] },
+      { id: 'Nunu', name: 'Nunu e Willump', title: 'o Garoto e seu Yeti', lanes: ['jungle'] },
+      { id: 'Olaf', name: 'Olaf', title: 'o Berserker', lanes: ['top', 'jungle'] },
+      { id: 'Orianna', name: 'Orianna', title: 'a Donzela Mecânica', lanes: ['mid'] },
+      { id: 'Ornn', name: 'Ornn', title: 'o Fogo sob a Montanha', lanes: ['top'] },
+      { id: 'Pantheon', name: 'Pantheon', title: 'a Lança Indestrutível', lanes: ['sup', 'top', 'mid', 'jungle'] },
+      { id: 'Poppy', name: 'Poppy', title: 'a Guardiã do Martelo', lanes: ['top', 'jungle', 'sup'] },
+      { id: 'Pyke', name: 'Pyke', title: 'o Estripador das Águas Sangrentas', lanes: ['sup'] },
+      { id: 'Qiyana', name: 'Qiyana', title: 'a Imperatriz dos Elementos', lanes: ['mid', 'jungle'] },
+      { id: 'Quinn', name: 'Quinn', title: 'as Asas de Demacia', lanes: ['top'] },
+      { id: 'Rakan', name: 'Rakan', title: 'o Charmoso', lanes: ['sup'] },
+      { id: 'Rammus', name: 'Rammus', title: 'o Tatu Blindado', lanes: ['jungle'] },
+      { id: 'RekSai', name: "Rek'Sai", title: 'a Escavadora do Vazio', lanes: ['jungle', 'top'] },
+      { id: 'Rell', name: 'Rell', title: 'a Dama de Ferro', lanes: ['sup', 'jungle'] },
+      { id: 'Renata', name: 'Renata Glasc', title: 'a Baronesa da Química', lanes: ['sup'] },
+      { id: 'Renekton', name: 'Renekton', title: 'o Carniceiro das Areias', lanes: ['top'] },
+      { id: 'Rengar', name: 'Rengar', title: 'o Acossador da Alcateia', lanes: ['jungle', 'top'] },
+      { id: 'Riven', name: 'Riven', title: 'a Exilada', lanes: ['top'] },
+      { id: 'Rumble', name: 'Rumble', title: 'a Ameaça Mecânica', lanes: ['top', 'mid'] },
+      { id: 'Ryze', name: 'Ryze', title: 'o Mago Rúnico', lanes: ['mid', 'top'] },
+      { id: 'Samira', name: 'Samira', title: 'a Rosa do Deserto', lanes: ['adc'] },
+      { id: 'Sejuani', name: 'Sejuani', title: 'a Fúria do Norte', lanes: ['jungle', 'top'] },
+      { id: 'Senna', name: 'Senna', title: 'a Redentora', lanes: ['sup', 'adc'] },
+      { id: 'Seraphine', name: 'Seraphine', title: 'a Cantora Sonhadora', lanes: ['sup', 'adc', 'mid'] },
+      { id: 'Sett', name: 'Sett', title: 'o Chefe', lanes: ['top', 'sup'] },
+      { id: 'Shaco', name: 'Shaco', title: 'o Bufão Demoníaco', lanes: ['jungle', 'sup'] },
+      { id: 'Shen', name: 'Shen', title: 'o Olho do Crepúsculo', lanes: ['top', 'sup'] },
+      { id: 'Shyvana', name: 'Shyvana', title: 'a Meia-Dragão', lanes: ['jungle'] },
+      { id: 'Singed', name: 'Singed', title: 'o Químico Louco', lanes: ['top'] },
+      { id: 'Sion', name: 'Sion', title: 'o Colosso Morto-Vivo', lanes: ['top'] },
+      { id: 'Sivir', name: 'Sivir', title: 'a Mestra da Batalha', lanes: ['adc'] },
+      { id: 'Skarner', name: 'Skarner', title: 'o Soberano Primordial', lanes: ['jungle', 'top'] },
+      { id: 'Smolder', name: 'Smolder', title: 'o Filhote Flamejante', lanes: ['adc', 'mid', 'top'] },
+      { id: 'Sona', name: 'Sona', title: 'a Mestra das Cordas', lanes: ['sup'] },
+      { id: 'Soraka', name: 'Soraka', title: 'a Filha das Estrelas', lanes: ['sup'] },
+      { id: 'Swain', name: 'Swain', title: 'o Grande General Noxiano', lanes: ['sup', 'mid', 'adc'] },
+      { id: 'Sylas', name: 'Sylas', title: 'o Abjugado', lanes: ['mid', 'top', 'jungle'] },
+      { id: 'Syndra', name: 'Syndra', title: 'a Soberana Sombria', lanes: ['mid'] },
+      { id: 'TahmKench', name: 'Tahm Kench', title: 'o Rei do Rio', lanes: ['top', 'sup'] },
+      { id: 'Taliyah', name: 'Taliyah', title: 'a Tecelã de Pedras', lanes: ['jungle', 'mid'] },
+      { id: 'Talon', name: 'Talon', title: 'a Sombra da Lâmina', lanes: ['mid', 'jungle'] },
+      { id: 'Taric', name: 'Taric', title: 'o Escudo de Valoran', lanes: ['sup'] },
+      { id: 'Teemo', name: 'Teemo', title: 'o Explorador Veloz', lanes: ['top', 'jungle', 'sup'] },
+      { id: 'Thresh', name: 'Thresh', title: 'o Guardião das Correntes', lanes: ['sup'] },
+      { id: 'Tristana', name: 'Tristana', title: 'a Artilheira Yordle', lanes: ['adc', 'mid'] },
+      { id: 'Trundle', name: 'Trundle', title: 'o Rei dos Trolls', lanes: ['top', 'jungle'] },
+      { id: 'Tryndamere', name: 'Tryndamere', title: 'o Rei Bárbaro', lanes: ['top'] },
+      { id: 'TwistedFate', name: 'Twisted Fate', title: 'o Mestre das Cartas', lanes: ['mid', 'top', 'adc'] },
+      { id: 'Twitch', name: 'Twitch', title: 'o Semeador da Peste', lanes: ['adc', 'sup'] },
+      { id: 'Udyr', name: 'Udyr', title: 'o Andarilho Espiritual', lanes: ['jungle', 'top'] },
+      { id: 'Urgot', name: 'Urgot', title: 'o Encouraçado', lanes: ['top'] },
+      { id: 'Varus', name: 'Varus', title: 'a Flecha da Vingança', lanes: ['adc', 'mid'] },
+      { id: 'Vayne', name: 'Vayne', title: 'a Caçadora Noturna', lanes: ['adc', 'top'] },
+      { id: 'Veigar', name: 'Veigar', title: 'o Pequeno Mestre do Mal', lanes: ['mid', 'adc', 'sup'] },
+      { id: 'Velkoz', name: "Vel'Koz", title: 'o Olho do Vazio', lanes: ['sup', 'mid'] },
+      { id: 'Vex', name: 'Vex', title: 'a Melancólica', lanes: ['mid'] },
+      { id: 'Vi', name: 'Vi', title: 'a Defensora de Piltover', lanes: ['jungle'] },
+      { id: 'Viego', name: 'Viego', title: 'o Rei Destruído', lanes: ['jungle'] },
+      { id: 'Viktor', name: 'Viktor', title: 'o Arauto das Máquinas', lanes: ['mid'] },
+      { id: 'Vladimir', name: 'Vladimir', title: 'o Sanguinário Escarlate', lanes: ['mid', 'top'] },
+      { id: 'Volibear', name: 'Volibear', title: 'a Tempestade Implacável', lanes: ['top', 'jungle'] },
+      { id: 'Warwick', name: 'Warwick', title: 'a Ira Descontrolada de Zaun', lanes: ['jungle', 'top'] },
+      { id: 'MonkeyKing', name: 'Wukong', title: 'o Macaco Rei', lanes: ['jungle', 'top'] },
+      { id: 'Xayah', name: 'Xayah', title: 'a Rebelde', lanes: ['adc'] },
+      { id: 'Xerath', name: 'Xerath', title: 'o Mago Ascendente', lanes: ['sup', 'mid'] },
+      { id: 'XinZhao', name: 'Xin Zhao', title: 'o Senescal de Demacia', lanes: ['jungle'] },
+      { id: 'Yasuo', name: 'Yasuo', title: 'o Imperdoável', lanes: ['mid', 'top', 'adc'] },
+      { id: 'Yone', name: 'Yone', title: 'o Inesquecido', lanes: ['mid', 'top'] },
+      { id: 'Yorick', name: 'Yorick', title: 'o Pastor de Almas', lanes: ['top'] },
+      { id: 'Yunara', name: 'Yunara', title: 'a Fé Inabalável', lanes: ['adc'] },
+      { id: 'Yuumi', name: 'Yuumi', title: 'a Gata Mágica', lanes: ['sup'] },
+      { id: 'Zaahen', name: 'Zaahen', title: 'a Lâmina Indomável', lanes: ['top', 'jungle'] },
+      { id: 'Zac', name: 'Zac', title: 'a Arma Secreta', lanes: ['jungle', 'top', 'sup'] },
+      { id: 'Zed', name: 'Zed', title: 'o Mestre das Sombras', lanes: ['mid', 'jungle'] },
+      { id: 'Zeri', name: 'Zeri', title: 'a Faísca de Zaun', lanes: ['adc'] },
+      { id: 'Ziggs', name: 'Ziggs', title: 'o Especialista em Hexplosivos', lanes: ['adc', 'mid'] },
+      { id: 'Zilean', name: 'Zilean', title: 'o Guardião do Tempo', lanes: ['sup', 'mid'] },
+      { id: 'Zoe', name: 'Zoe', title: 'o Aspecto do Crepúsculo', lanes: ['mid', 'sup'] },
+      { id: 'Zyra', name: 'Zyra', title: 'a Ascensão dos Espinhos', lanes: ['sup', 'jungle'] }
+    ];
+
+    const DEFAULT_LANES_DICT = Object.fromEntries(
+      CHAMPION_CATALOG.map((c) => [c.id, c.lanes])
+    );
+
+    /**
+     * SINTETIZADOR DE ÁUDIO HEXTECH (Web Audio API)
+     * Produz feedback sonoro sutil ao marcar/desmarcar campeões sem depender de arquivos externos.
+     */
+    function playHextechSound(type = 'check') {
+      if (!state.soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (type === 'check') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now); // Dó5
+          osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.12); // Sol5
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(392.0, now);
+          osc.frequency.exponentialRampToValueAtTime(293.66, now + 0.1);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        }
+      } catch (e) {
+        // Silencia erros caso o navegador bloqueie áudio automático
+      }
+    }
+
+    /**
+     * PERSISTÊNCIA NO LOCALSTORAGE
+     */
+    function loadSavedState() {
+      try {
+        // Migra dados da v1 caso existam e v2 ainda não exista
+        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('desafio_lol_az_hextech_v1');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+
+        if (parsed.players && parsed.players.p1 && parsed.players.p2) {
+          state.players.p1 = {
+            name: String(parsed.players.p1.name || 'Você').slice(0, 24),
+            completed: Array.isArray(parsed.players.p1.completed) ? parsed.players.p1.completed : []
+          };
+          state.players.p2 = {
+            name: String(parsed.players.p2.name || 'Amigo').slice(0, 24),
+            completed: Array.isArray(parsed.players.p2.completed) ? parsed.players.p2.completed : []
+          };
+        }
+        if (parsed.activePlayer === 'p1' || parsed.activePlayer === 'p2') {
+          state.activePlayer = parsed.activePlayer;
+        }
+        if (parsed.customLanes && typeof parsed.customLanes === 'object') {
+          state.customLanes = parsed.customLanes;
+        }
+        if (parsed.viewMode === 'grid' || parsed.viewMode === 'lanes') {
+          state.viewMode = parsed.viewMode;
+        }
+        if (typeof parsed.soundEnabled === 'boolean') {
+          state.soundEnabled = parsed.soundEnabled;
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados do localStorage:', err);
+      }
+    }
+
+    function saveState() {
+      try {
+        const payload = {
+          activePlayer: state.activePlayer,
+          players: state.players,
+          customLanes: state.customLanes,
+          viewMode: state.viewMode,
+          soundEnabled: state.soundEnabled
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (err) {
+        console.error('Erro ao salvar no localStorage:', err);
+      }
+    }
+
+    /**
+     * RESOLUÇÃO DE ROTAS DE UM CAMPEÃO (PADRÃO + PERSONALIZADO)
+     */
+    function inferLanesFromRiotTags(tags = []) {
+      const inferred = new Set();
+      if (tags.includes('Marksman')) inferred.add('adc');
+      if (tags.includes('Support')) inferred.add('sup');
+      if (tags.includes('Fighter') || tags.includes('Tank')) inferred.add('top');
+      if (tags.includes('Assassin')) {
+        inferred.add('mid');
+        inferred.add('jungle');
+      }
+      if (tags.includes('Mage')) inferred.add('mid');
+      return inferred.size > 0 ? Array.from(inferred) : ['mid'];
+    }
+
+    function resolveChampionLanes(champId, tags = []) {
+      const custom = state.customLanes[champId];
+      if (Array.isArray(custom) && custom.length > 0) {
+        return custom;
+      }
+      if (DEFAULT_LANES_DICT[champId]) {
+        return DEFAULT_LANES_DICT[champId];
+      }
+      return inferLanesFromRiotTags(tags);
+    }
+
+    function syncAllChampionLanes() {
+      state.champions.forEach((champ) => {
+        champ.lanes = resolveChampionLanes(champ.id, champ.tags || []);
+      });
+    }
+
+    /**
+     * UTILITÁRIO: EXTRAI A LETRA INICIAL NORMALIZADA (A-Z)
+     */
+    function getNormalizedFirstLetter(name) {
+      const clean = name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+      const first = clean.charAt(0);
+      return /^[A-Z]$/.test(first) ? first : '#';
+    }
+
+    /**
+     * CARREGAMENTO DE CAMPEÕES DA API DATA DRAGON (RIOT GAMES)
+     */
+    async function fetchChampionsFromRiot() {
+      const loadingEl = document.getElementById('loadingState');
+      const fallbackEl = document.getElementById('fallbackNotice');
+      const patchBadge = document.getElementById('patchBadge');
+
+      loadingEl.classList.remove('hidden');
+      fallbackEl.classList.add('hidden');
+
+      try {
+        // 1. Buscar versão mais recente
+        const versionsRes = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+        if (!versionsRes.ok) throw new Error('Falha ao obter versões');
+        const versions = await versionsRes.json();
+        const latestVersion = versions[0];
+        state.version = latestVersion;
+
+        // 2. Buscar lista de campeões em pt_BR
+        const champsRes = await fetch(`https://ddragon.leagueoflegends.com/cdn/${latestVersion}/data/pt_BR/champion.json`);
+        if (!champsRes.ok) throw new Error('Falha ao obter campeões');
+        const champsJson = await champsRes.json();
+
+        const rawList = Object.values(champsJson.data).map((c) => ({
+          id: c.id,
+          name: c.name,
+          title: c.title,
+          imageFull: c.image.full,
+          tags: c.tags || [],
+          letter: getNormalizedFirstLetter(c.name),
+          lanes: resolveChampionLanes(c.id, c.tags || [])
+        }));
+
+        // 3. Ordenar rigorosamente de A a Z pelo nome em pt-BR
+        rawList.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+
+        state.champions = rawList;
+        patchBadge.textContent = `Patch ${latestVersion}`;
+      } catch (error) {
+        console.warn('Usando catálogo fallback completo de campeões:', error);
+        const fallbackSorted = CHAMPION_CATALOG
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            title: c.title,
+            imageFull: `${c.id}.png`,
+            tags: [],
+            letter: getNormalizedFirstLetter(c.name),
+            lanes: resolveChampionLanes(c.id)
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+
+        state.champions = fallbackSorted;
+        patchBadge.textContent = 'Catálogo Offline';
+        fallbackEl.classList.remove('hidden');
+      } finally {
+        loadingEl.classList.add('hidden');
+      }
+    }
+
+    /**
+     * CÁLCULO DE ESTATÍSTICAS DE UM JOGADOR (GERAL E POR ROTA)
+     */
+    function getPlayerStats(playerKey, laneFilter = 'ALL') {
+      const completedSet = new Set(state.players[playerKey].completed);
+      const scopedChampions =
+        laneFilter === 'ALL'
+          ? state.champions
+          : state.champions.filter((c) => c.lanes.includes(laneFilter));
+
+      const total = scopedChampions.length;
+      const completedCount = scopedChampions.filter((c) => completedSet.has(c.id)).length;
+      const percentage = total > 0 ? ((completedCount / total) * 100).toFixed(1) : '0.0';
+
+      // Próximo campeão ainda não marcado na sequência A-Z dentro do escopo atual
+      const nextIndex = scopedChampions.findIndex((c) => !completedSet.has(c.id));
+      const nextChamp = nextIndex !== -1 ? scopedChampions[nextIndex] : null;
+      const currentLetter = nextChamp ? nextChamp.letter : '✓';
+
+      return {
+        total,
+        completedCount,
+        percentage,
+        nextChamp,
+        nextIndex,
+        currentLetter,
+        completedSet,
+        scopedChampions
+      };
+    }
+
+    /**
+     * RENDERIZA BADGES PEQUENAS DE ROTA
+     */
+    function renderLaneBadgesHtml(lanes, compact = true) {
+      return lanes
+        .map((laneKey) => {
+          const info = LANE_MAP_BY_KEY[laneKey];
+          if (!info) return '';
+          return `<span class="inline-flex items-center px-1.5 py-0.2 rounded border text-[9px] font-bold uppercase tracking-wider ${info.badgeClass}">
+            ${compact ? info.short : info.label}
+          </span>`;
+        })
+        .join('');
+    }
+
+    /**
+     * ATUALIZAÇÃO COMPLETA DA INTERFACE
+     */
+    function renderAll() {
+      syncAllChampionLanes();
+      updateSoundIcons();
+      renderScoreboard();
+      renderActiveTabsAndSpotlight();
+      renderLaneBar();
+      updateViewModeButtons();
+      renderAlphabetBar();
+      renderChampionsView();
+    }
+
+    /**
+     * RENDERIZA O PLACAR COMPARATIVO (JOGADOR 1 VS JOGADOR 2)
+     */
+    function renderScoreboard() {
+      const statsP1 = getPlayerStats('p1');
+      const statsP2 = getPlayerStats('p2');
+
+      // Nomes
+      document.getElementById('p1NameDisplay').textContent = state.players.p1.name;
+      document.getElementById('p2NameDisplay').textContent = state.players.p2.name;
+
+      // Contadores e porcentagens
+      document.getElementById('p1CountText').textContent = `${statsP1.completedCount} / ${statsP1.total}`;
+      document.getElementById('p1PercentText').textContent = `${statsP1.percentage}%`;
+      document.getElementById('p1ProgressBar').style.width = `${statsP1.percentage}%`;
+      document.getElementById('p1CurrentLetter').textContent = statsP1.currentLetter;
+
+      document.getElementById('p2CountText').textContent = `${statsP2.completedCount} / ${statsP2.total}`;
+      document.getElementById('p2PercentText').textContent = `${statsP2.percentage}%`;
+      document.getElementById('p2ProgressBar').style.width = `${statsP2.percentage}%`;
+      document.getElementById('p2CurrentLetter').textContent = statsP2.currentLetter;
+
+      // Badge de liderança
+      const p1Leader = document.getElementById('p1LeaderBadge');
+      const p2Leader = document.getElementById('p2LeaderBadge');
+      p1Leader.classList.toggle('hidden', !(statsP1.completedCount > statsP2.completedCount));
+      p2Leader.classList.toggle('hidden', !(statsP2.completedCount > statsP1.completedCount));
+
+      // Destaque visual do card do jogador selecionado
+      const cardP1 = document.getElementById('scoreCardP1');
+      const cardP2 = document.getElementById('scoreCardP2');
+
+      if (state.activePlayer === 'p1') {
+        cardP1.classList.add('hextech-border-strong');
+        cardP1.classList.remove('hextech-border', 'opacity-85');
+        cardP2.classList.remove('hextech-border-strong');
+        cardP2.classList.add('hextech-border', 'opacity-85');
+      } else {
+        cardP2.classList.add('hextech-border-strong');
+        cardP2.classList.remove('hextech-border', 'opacity-85');
+        cardP1.classList.remove('hextech-border-strong');
+        cardP1.classList.add('hextech-border', 'opacity-85');
+      }
+    }
+
+    /**
+     * RENDERIZA AS ABAS DO JOGADOR ATIVO E O CARD DE DESTAQUE "PRÓXIMO CAMPEÃO"
+     * Respeita automaticamente a rota selecionada no filtro!
+     */
+    function renderActiveTabsAndSpotlight() {
+      const tabP1 = document.getElementById('tabBtnP1');
+      const tabP2 = document.getElementById('tabBtnP2');
+
+      document.getElementById('tabLabelP1').textContent = `Jogador 1 (${state.players.p1.name})`;
+      document.getElementById('tabLabelP2').textContent = `Jogador 2 (${state.players.p2.name})`;
+      document.getElementById('activePlayerIndicator').textContent = state.players[state.activePlayer].name;
+
+      const activeClasses = ['bg-gradient-to-r', 'from-hextech-cyanDark', 'to-hextech-cyan', 'text-hextech-bg', 'shadow-hextech-cyan'];
+      const inactiveClasses = ['text-slate-300', 'hover:text-hextech-goldLight'];
+
+      if (state.activePlayer === 'p1') {
+        tabP1.classList.add(...activeClasses);
+        tabP1.classList.remove(...inactiveClasses);
+        tabP2.classList.remove(...activeClasses);
+        tabP2.classList.add(...inactiveClasses);
+      } else {
+        tabP2.classList.add(...activeClasses);
+        tabP2.classList.remove(...inactiveClasses);
+        tabP1.classList.remove(...activeClasses);
+        tabP1.classList.add(...inactiveClasses);
+      }
+
+      // Próximo Campeão respeitando o filtro de rota ativo
+      const activeLane = state.filters.lane;
+      const statsAll = getPlayerStats(state.activePlayer, 'ALL');
+      const statsLane = getPlayerStats(state.activePlayer, activeLane);
+
+      const nextContainer = document.getElementById('nextChampionContainer');
+      const laneCompletedBanner = document.getElementById('laneCompletedBanner');
+      const victoryBanner = document.getElementById('allCompletedBanner');
+
+      if (!statsAll.nextChamp) {
+        nextContainer.classList.add('hidden');
+        laneCompletedBanner.classList.add('hidden');
+        victoryBanner.classList.remove('hidden');
+        return;
+      }
+
+      victoryBanner.classList.add('hidden');
+
+      if (!statsLane.nextChamp && activeLane !== 'ALL') {
+        nextContainer.classList.add('hidden');
+        laneCompletedBanner.classList.remove('hidden');
+        const laneName = LANE_MAP_BY_KEY[activeLane]?.label || activeLane;
+        document.getElementById('laneCompletedTitle').textContent = `Rota ${laneName} 100% Concluída!`;
+        return;
+      }
+
+      laneCompletedBanner.classList.add('hidden');
+      nextContainer.classList.remove('hidden');
+
+      const champ = statsLane.nextChamp;
+      const laneInfo = activeLane !== 'ALL' ? LANE_MAP_BY_KEY[activeLane] : null;
+
+      document.getElementById('nextChampHeaderLabel').textContent = laneInfo
+        ? `Próximo Campeão • ${laneInfo.label} (Ordem A–Z)`
+        : 'Próximo Campeão (Ordem A–Z)';
+
+      document.getElementById('nextChampOrderBadge').textContent = laneInfo
+        ? `#${statsLane.nextIndex + 1} de ${statsLane.total} (${laneInfo.label})`
+        : `#${statsLane.nextIndex + 1} de ${statsLane.total}`;
+
+      const imgEl = document.getElementById('nextChampImg');
+      imgEl.src = `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/${champ.imageFull}`;
+      imgEl.alt = champ.name;
+      imgEl.onerror = function () {
+        this.onerror = null;
+        this.src = `https://placehold.co/120x120/091428/C89B3C?text=${encodeURIComponent(champ.name.slice(0, 3))}`;
+      };
+
+      document.getElementById('nextChampLetterBadge').textContent = champ.letter;
+      document.getElementById('nextChampName').textContent = champ.name;
+      document.getElementById('nextChampTitle').textContent = champ.title;
+      document.getElementById('nextChampLanesBadges').innerHTML = renderLaneBadgesHtml(champ.lanes, false);
+    }
+
+    /**
+     * RENDERIZA A BARRA DE ROTAS COM ÍCONES SVG E CONTADORES DO JOGADOR ATIVO
+     */
+    function renderLaneBar() {
+      const bar = document.getElementById('laneFilterBar');
+      const summaryEl = document.getElementById('activeLaneSummary');
+      const allStats = getPlayerStats(state.activePlayer, 'ALL');
+
+      const allSvg = `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>`;
+
+      const items = [
+        {
+          key: 'ALL',
+          label: 'Todas as Rotas',
+          svg: allSvg,
+          completed: allStats.completedCount,
+          total: allStats.total
+        },
+        ...LANES_CONFIG.map((lane) => {
+          const st = getPlayerStats(state.activePlayer, lane.key);
+          return {
+            key: lane.key,
+            label: lane.label,
+            svg: lane.svg,
+            completed: st.completedCount,
+            total: st.total
+          };
+        })
+      ];
+
+      if (state.filters.lane === 'ALL') {
+        summaryEl.textContent = `Exibindo todas as rotas (${allStats.completedCount}/${allStats.total})`;
+      } else {
+        const currentLaneObj = items.find((i) => i.key === state.filters.lane);
+        summaryEl.textContent = currentLaneObj
+          ? `Rota ativa: ${currentLaneObj.label} (${currentLaneObj.completed}/${currentLaneObj.total} concluídos)`
+          : '';
+      }
+
+      bar.innerHTML = items
+        .map((item) => {
+          const isSelected = state.filters.lane === item.key;
+          const isFull = item.total > 0 && item.completed === item.total;
+          const pct = item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0;
+
+          return `
+            <button
+              type="button"
+              onclick="setLaneFilter('${item.key}')"
+              class="relative overflow-hidden flex flex-col justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-gradient-to-br from-[#0D253F] to-[#08182B] border-hextech-cyan shadow-hextech-cyan text-hextech-goldLight'
+                  : isFull
+                  ? 'bg-hextech-bg border-hextech-gold text-hextech-gold hover:bg-hextech-cardHover'
+                  : 'bg-hextech-bg border-hextech-gold/25 text-slate-300 hover:border-hextech-gold/70 hover:text-hextech-goldLight'
+              }"
+            >
+              <div class="flex items-center justify-between gap-1.5 w-full">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="${isSelected ? 'text-hextech-cyan' : isFull ? 'text-hextech-gold' : 'text-hextech-gold/80'}">
+                    ${item.svg}
+                  </span>
+                  <span class="font-display font-bold text-xs truncate">
+                    ${item.label}
+                  </span>
+                </div>
+                <span class="text-[11px] font-bold shrink-0 ${
+                  isSelected ? 'text-hextech-cyan' : isFull ? 'text-hextech-gold' : 'text-slate-400'
+                }">
+                  ${item.completed}/${item.total}
+                </span>
+              </div>
+
+              <!-- Mini barra de progresso da rota -->
+              <div class="w-full h-1 bg-black/50 rounded-full overflow-hidden mt-2">
+                <div
+                  class="h-full rounded-full transition-all duration-300 ${
+                    isFull ? 'bg-hextech-gold' : 'bg-hextech-cyan'
+                  }"
+                  style="width: ${pct}%"
+                ></div>
+              </div>
+            </button>
+          `;
+        })
+        .join('');
+    }
+
+    /**
+     * RENDERIZA A BARRA ALFABÉTICA (A–Z) COM STATUS DE CONCLUSÃO POR LETRA E ROTA ATUAL
+     */
+    function renderAlphabetBar() {
+      const bar = document.getElementById('alphabetBar');
+      const resetBtn = document.getElementById('resetLetterFilterBtn');
+      const stats = getPlayerStats(state.activePlayer, state.filters.lane);
+
+      resetBtn.classList.toggle('hidden', state.filters.letter === 'ALL');
+
+      // Agrupa campeões da rota selecionada por letra
+      const letterGroups = {};
+      stats.scopedChampions.forEach((c) => {
+        if (!letterGroups[c.letter]) letterGroups[c.letter] = [];
+        letterGroups[c.letter].push(c);
+      });
+
+      const letters = Object.keys(letterGroups).sort();
+      let html = '';
+
+      // Botão "TODAS"
+      const isAllActive = state.filters.letter === 'ALL';
+      html += `
+        <button
+          type="button"
+          onclick="setLetterFilter('ALL')"
+          class="px-2.5 h-8 rounded-lg text-xs font-bold transition cursor-pointer border ${
+            isAllActive
+              ? 'bg-hextech-cyan text-hextech-bg border-hextech-cyan shadow-hextech-cyan'
+              : 'bg-hextech-bg text-slate-300 border-hextech-gold/30 hover:border-hextech-gold'
+          }"
+        >
+          Todas
+        </button>
+      `;
+
+      letters.forEach((letter) => {
+        const group = letterGroups[letter];
+        const isLetterCompleted = group.length > 0 && group.every((c) => stats.completedSet.has(c.id));
+        const isSelected = state.filters.letter === letter;
+
+        let classes = '';
+        if (isSelected) {
+          classes = 'bg-hextech-cyan text-hextech-bg border-hextech-cyan shadow-hextech-cyan scale-105';
+        } else if (isLetterCompleted) {
+          classes = 'bg-hextech-gold/25 text-hextech-gold border-hextech-gold shadow-hextech-gold';
+        } else {
+          classes = 'bg-hextech-bg text-slate-300 border-hextech-gold/25 hover:border-hextech-gold/70 hover:text-hextech-goldLight';
+        }
+
+        html += `
+          <button
+            type="button"
+            onclick="handleAlphabetClick('${letter}')"
+            title="${
+              isLetterCompleted
+                ? `Letra ${letter} 100% concluída! Clique para ir até ${letter}`
+                : `Ir até a letra ${letter} (${group.length} campeões)`
+            }"
+            class="relative w-8 h-8 rounded-lg text-xs font-display font-bold transition cursor-pointer border flex items-center justify-center ${classes}"
+          >
+            ${letter}
+            ${
+              isLetterCompleted
+                ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-hextech-cyan border border-hextech-bg"></span>'
+                : ''
+            }
+          </button>
+        `;
+      });
+
+      bar.innerHTML = html;
+    }
+
+    /**
+     * GERA O HTML DE UM CARD INDIVIDUAL DE CAMPEÃO
+     */
+    function buildChampionCardHtml(champ, stats, anchorId = '') {
+      const isDone = stats.completedSet.has(champ.id);
+      const isNext = stats.nextChamp && stats.nextChamp.id === champ.id;
+      const imgUrl = `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/${champ.imageFull}`;
+      const fallbackUrl = `https://placehold.co/120x120/091428/C89B3C?text=${encodeURIComponent(champ.name.slice(0, 3))}`;
+
+      return `
+        <div
+          ${anchorId ? `id="${anchorId}"` : ''}
+          role="button"
+          tabindex="0"
+          onclick="toggleChampion('${champ.id}', this)"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChampion('${champ.id}', this);}"
+          aria-pressed="${isDone}"
+          class="group relative flex flex-col items-center text-center rounded-xl p-3 transition-all duration-200 cursor-pointer select-none focus:outline-none scroll-mt-28 ${
+            isDone
+              ? 'bg-[#071929] border border-hextech-cyan/80 shadow-hextech-cyan'
+              : isNext
+              ? 'bg-hextech-card border-2 border-hextech-gold shadow-hextech-gold hover:bg-hextech-cardHover'
+              : 'bg-hextech-card border border-hextech-gold/30 hover:border-hextech-gold hover:bg-hextech-cardHover'
+          }"
+        >
+          <!-- Badge da Letra no canto superior esquerdo -->
+          <span class="absolute top-2 left-2 text-[10px] font-display font-bold px-1.5 py-0.5 rounded ${
+            isDone
+              ? 'bg-hextech-cyan/20 text-hextech-cyan'
+              : 'bg-hextech-bg/90 text-hextech-gold/80 border border-hextech-gold/25'
+          }">
+            ${champ.letter}
+          </span>
+
+          <!-- Botão Editar Rotas + Selo de Check no canto superior direito -->
+          <div class="absolute top-2 right-2 flex items-center gap-1">
+            <button
+              type="button"
+              onclick="event.stopPropagation(); openEditLaneModal('${champ.id}')"
+              title="Editar rotas de ${champ.name}"
+              aria-label="Editar rotas de ${champ.name}"
+              class="w-6 h-6 rounded-full bg-hextech-bg/90 border border-hextech-gold/35 text-slate-400 hover:text-hextech-gold hover:border-hextech-gold flex items-center justify-center transition opacity-80 group-hover:opacity-100 cursor-pointer"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </button>
+            <span class="w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+              isDone
+                ? 'bg-hextech-cyan text-hextech-bg font-bold shadow-md scale-100'
+                : 'bg-hextech-bg/80 border border-slate-600 text-transparent group-hover:border-hextech-gold/60'
+            }">
+              ✓
+            </span>
+          </div>
+
+          <!-- Retrato do Campeão -->
+          <div class="relative w-16 h-16 sm:w-20 sm:h-20 mt-3 mb-2 rounded-xl overflow-hidden border transition-all ${
+            isDone
+              ? 'border-hextech-cyan/70 grayscale-[35%] opacity-85'
+              : 'border-hextech-gold/50 group-hover:scale-105 group-hover:border-hextech-gold'
+          }">
+            <img
+              src="${imgUrl}"
+              alt="${champ.name}"
+              loading="lazy"
+              onerror="this.onerror=null;this.src='${fallbackUrl}';"
+              class="w-full h-full object-cover"
+            />
+            ${
+              isDone
+                ? '<div class="absolute inset-0 bg-hextech-cyan/15 pointer-events-none"></div>'
+                : ''
+            }
+          </div>
+
+          <!-- Nome e Subtítulo -->
+          <span class="font-display font-bold text-xs sm:text-sm tracking-wide line-clamp-1 ${
+            isDone ? 'text-hextech-cyan' : 'text-hextech-goldLight group-hover:text-white'
+          }">
+            ${champ.name}
+          </span>
+          <span class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+            ${isDone ? 'Concluído' : isNext ? 'Próximo da fila' : champ.title}
+          </span>
+
+          <!-- Tags/Badges das Rotas do Campeão -->
+          <div class="flex flex-wrap items-center justify-center gap-1 mt-2">
+            ${renderLaneBadgesHtml(champ.lanes, true)}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * FILTRA LISTA DE CAMPEÕES COM BASE NOS CONTROLES ATIVOS
+     */
+    function getFilteredChampions(laneOverride = null) {
+      const targetLane = laneOverride || state.filters.lane;
+      const stats = getPlayerStats(state.activePlayer, targetLane);
+
+      const searchNorm = state.filters.search
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+      return stats.scopedChampions.filter((champ) => {
+        const isDone = stats.completedSet.has(champ.id);
+
+        if (state.filters.status === 'completed' && !isDone) return false;
+        if (state.filters.status === 'pending' && isDone) return false;
+        if (state.filters.letter !== 'ALL' && champ.letter !== state.filters.letter) return false;
+
+        if (searchNorm) {
+          const champNorm = champ.name
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+          if (!champNorm.includes(searchNorm)) return false;
+        }
+        return true;
+      });
+    }
+
+    /**
+     * RENDERIZA A VISUALIZAÇÃO ATIVA ("GRADE A–Z" OU "SEPARADO POR ROTA")
+     */
+    function renderChampionsView() {
+      const grid = document.getElementById('championsGrid');
+      const lanesContainer = document.getElementById('lanesContainer');
+      const emptyState = document.getElementById('emptyFilterState');
+      const stats = getPlayerStats(state.activePlayer, state.filters.lane);
+
+      // Atualiza contadores dos botões de status
+      document.getElementById('countAll').textContent = stats.total;
+      document.getElementById('countCompleted').textContent = stats.completedCount;
+      document.getElementById('countPending').textContent = stats.total - stats.completedCount;
+
+      if (state.viewMode === 'grid') {
+        lanesContainer.classList.add('hidden');
+        const filtered = getFilteredChampions();
+
+        if (filtered.length === 0 && state.champions.length > 0) {
+          grid.classList.add('hidden');
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+        grid.classList.remove('hidden');
+
+        const seenLetters = new Set();
+        grid.innerHTML = filtered
+          .map((champ) => {
+            let anchorId = '';
+            if (!seenLetters.has(champ.letter)) {
+              seenLetters.add(champ.letter);
+              anchorId = `letter-anchor-${champ.letter}`;
+            }
+            return buildChampionCardHtml(champ, stats, anchorId);
+          })
+          .join('');
+      } else {
+        // Modo: Separado por Rota (5 seções distintas e recolhíveis)
+        grid.classList.add('hidden');
+        const lanesToShow =
+          state.filters.lane === 'ALL'
+            ? LANES_CONFIG
+            : LANES_CONFIG.filter((l) => l.key === state.filters.lane);
+
+        const seenLettersGlobal = new Set();
+        let totalRenderedCards = 0;
+
+        const sectionsHtml = lanesToShow
+          .map((lane) => {
+            const laneStats = getPlayerStats(state.activePlayer, lane.key);
+            const filteredInLane = getFilteredChampions(lane.key);
+            totalRenderedCards += filteredInLane.length;
+
+            const isCollapsed = Boolean(state.collapsedLanes[lane.key]);
+            const isComplete = laneStats.total > 0 && laneStats.completedCount === laneStats.total;
+
+            // Esconde seção vazia apenas se houver busca/filtro de letra ativo
+            if (filteredInLane.length === 0 && (state.filters.search || state.filters.letter !== 'ALL' || state.filters.status !== 'all')) {
+              return '';
+            }
+
+            const cardsHtml = filteredInLane
+              .map((champ) => {
+                let anchorId = '';
+                if (!seenLettersGlobal.has(champ.letter)) {
+                  seenLettersGlobal.add(champ.letter);
+                  anchorId = `letter-anchor-${champ.letter}`;
+                }
+                return buildChampionCardHtml(champ, laneStats, anchorId);
+              })
+              .join('');
+
+            return `
+              <div class="rounded-2xl bg-hextech-card ${isComplete ? 'hextech-border-strong' : 'hextech-border'} overflow-hidden shadow-hextech-card">
+                <!-- Cabeçalho Recolhível da Rota -->
+                <button
+                  type="button"
+                  onclick="toggleLaneCollapse('${lane.key}')"
+                  aria-expanded="${!isCollapsed}"
+                  class="w-full px-4 sm:px-5 py-3.5 bg-gradient-to-r from-[#071324] via-[#0B1C34] to-[#071324] hover:brightness-110 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer text-left"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-hextech-bg border ${isComplete ? 'border-hextech-gold text-hextech-gold' : 'border-hextech-cyan/50 text-hextech-cyan'} flex items-center justify-center shrink-0">
+                      ${lane.svg}
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h3 class="font-display text-base sm:text-lg font-bold text-hextech-goldLight">
+                          ${lane.label}
+                        </h3>
+                        ${
+                          isComplete
+                            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-hextech-gold/20 text-hextech-gold border border-hextech-gold/50">100% Completa</span>'
+                            : ''
+                        }
+                      </div>
+                      <p class="text-xs text-slate-400">
+                        <strong class="text-hextech-cyan">${laneStats.completedCount}</strong> de <strong>${laneStats.total}</strong> campeões concluídos (${laneStats.percentage}%)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div class="w-32 sm:w-40 h-2 bg-hextech-bg rounded-full overflow-hidden border border-hextech-gold/25">
+                      <div class="h-full hextech-progress-fill transition-all duration-500 rounded-full" style="width: ${laneStats.percentage}%"></div>
+                    </div>
+                    <span class="w-7 h-7 rounded-lg bg-hextech-bg border border-hextech-gold/30 text-hextech-gold flex items-center justify-center text-xs transition-transform duration-200 ${
+                      isCollapsed ? '-rotate-90' : 'rotate-0'
+                    }">
+                      ▼
+                    </span>
+                  </div>
+                </button>
+
+                <!-- Grid Interno da Rota -->
+                <div class="${isCollapsed ? 'hidden' : 'p-4 sm:p-5 border-t border-hextech-gold/15'}">
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4">
+                    ${cardsHtml}
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+
+        if (totalRenderedCards === 0 && state.champions.length > 0) {
+          lanesContainer.classList.add('hidden');
+          emptyState.classList.remove('hidden');
+        } else {
+          emptyState.classList.add('hidden');
+          lanesContainer.classList.remove('hidden');
+          lanesContainer.innerHTML = sectionsHtml;
+        }
+      }
+    }
+
+    /**
+     * INTERAÇÕES DO USUÁRIO
+     */
+    function toggleChampion(champId, cardEl) {
+      const list = state.players[state.activePlayer].completed;
+      const idx = list.indexOf(champId);
+      const champ = state.champions.find((c) => c.id === champId);
+
+      if (idx === -1) {
+        list.push(champId);
+        playHextechSound('check');
+        if (champ) showToast(`${champ.name} marcado como jogado!`);
+      } else {
+        list.splice(idx, 1);
+        playHextechSound('uncheck');
+        if (champ) showToast(`${champ.name} desmarcado.`);
+      }
+
+      if (cardEl) {
+        cardEl.classList.add('animate-check');
+      }
+
+      saveState();
+      renderAll();
+    }
+
+    function completeNextChampion() {
+      const stats = getPlayerStats(state.activePlayer, state.filters.lane);
+      if (!stats.nextChamp) return;
+      toggleChampion(stats.nextChamp.id);
+    }
+
+    function switchActivePlayer(playerKey) {
+      if (state.activePlayer === playerKey) return;
+      state.activePlayer = playerKey;
+      saveState();
+      renderAll();
+    }
+
+    function setLaneFilter(laneKey) {
+      state.filters.lane = laneKey;
+      // Garante que a rota clicada esteja expandida caso esteja no modo Separado por Rota
+      if (laneKey !== 'ALL') {
+        state.collapsedLanes[laneKey] = false;
+      }
+      renderActiveTabsAndSpotlight();
+      renderLaneBar();
+      renderAlphabetBar();
+      renderChampionsView();
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      saveState();
+      updateViewModeButtons();
+      renderChampionsView();
+    }
+
+    function updateViewModeButtons() {
+      const gridBtn = document.getElementById('viewGridBtn');
+      const lanesBtn = document.getElementById('viewLanesBtn');
+      const activeCls = ['bg-hextech-cyan', 'text-hextech-bg', 'shadow-hextech-cyan'];
+      const inactiveCls = ['text-slate-300', 'hover:text-hextech-goldLight'];
+
+      if (state.viewMode === 'grid') {
+        gridBtn.classList.add(...activeCls);
+        gridBtn.classList.remove(...inactiveCls);
+        lanesBtn.classList.remove(...activeCls);
+        lanesBtn.classList.add(...inactiveCls);
+      } else {
+        lanesBtn.classList.add(...activeCls);
+        lanesBtn.classList.remove(...inactiveCls);
+        gridBtn.classList.remove(...activeCls);
+        gridBtn.classList.add(...inactiveCls);
+      }
+    }
+
+    function toggleLaneCollapse(laneKey) {
+      state.collapsedLanes[laneKey] = !state.collapsedLanes[laneKey];
+      renderChampionsView();
+    }
+
+    /**
+     * EDIÇÃO INLINE DO NOME DOS JOGADORES
+     */
+    function startEditingPlayerName(playerKey) {
+      const displayEl = document.getElementById(`${playerKey}NameDisplay`);
+      const inputEl = document.getElementById(`${playerKey}NameInput`);
+
+      inputEl.value = state.players[playerKey].name;
+      displayEl.classList.add('hidden');
+      inputEl.classList.remove('hidden');
+      inputEl.focus();
+      inputEl.select();
+    }
+
+    function finishEditingPlayerName(playerKey) {
+      const displayEl = document.getElementById(`${playerKey}NameDisplay`);
+      const inputEl = document.getElementById(`${playerKey}NameInput`);
+
+      const newName = inputEl.value.trim();
+      if (newName) {
+        state.players[playerKey].name = newName.slice(0, 24);
+        saveState();
+      }
+
+      inputEl.classList.add('hidden');
+      displayEl.classList.remove('hidden');
+      renderAll();
+    }
+
+    function handleNameKeydown(event, playerKey) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        finishEditingPlayerName(playerKey);
+      } else if (event.key === 'Escape') {
+        const displayEl = document.getElementById(`${playerKey}NameDisplay`);
+        const inputEl = document.getElementById(`${playerKey}NameInput`);
+        inputEl.classList.add('hidden');
+        displayEl.classList.remove('hidden');
+      }
+    }
+
+    /**
+     * FILTROS DE BUSCA, STATUS E LETRA
+     */
+    function handleSearchInput(value) {
+      state.filters.search = value;
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', value.length === 0);
+      renderChampionsView();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      handleSearchInput('');
+      input.focus();
+    }
+
+    function setStatusFilter(status) {
+      state.filters.status = status;
+
+      const btns = {
+        all: document.getElementById('filterAllBtn'),
+        pending: document.getElementById('filterPendingBtn'),
+        completed: document.getElementById('filterCompletedBtn')
+      };
+
+      Object.entries(btns).forEach(([key, btn]) => {
+        if (key === status) {
+          btn.classList.add('bg-hextech-gold', 'text-hextech-bg');
+          btn.classList.remove('text-slate-300', 'hover:text-hextech-goldLight');
+        } else {
+          btn.classList.remove('bg-hextech-gold', 'text-hextech-bg');
+          btn.classList.add('text-slate-300', 'hover:text-hextech-goldLight');
+        }
+      });
+
+      renderChampionsView();
+    }
+
+    function handleAlphabetClick(letter) {
+      // Se já houver um filtro restritivo de outra letra, libera para permitir rolar suavemente até a letra clicada
+      if (state.filters.letter !== 'ALL' && state.filters.letter !== letter) {
+        state.filters.letter = 'ALL';
+        renderAlphabetBar();
+        renderChampionsView();
+      }
+
+      const target = document.getElementById(`letter-anchor-${letter}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.remove('animate-jump-highlight');
+        void target.offsetWidth;
+        target.classList.add('animate-jump-highlight');
+      } else {
+        // Caso o filtro atual (ex: Concluídos) não tenha campeões nessa letra, aplica o filtro da letra
+        setLetterFilter(letter);
+      }
+    }
+
+    function setLetterFilter(letter) {
+      state.filters.letter = letter;
+      renderAlphabetBar();
+      renderChampionsView();
+    }
+
+    function resetAllFilters() {
+      state.filters.lane = 'ALL';
+      state.filters.search = '';
+      state.filters.status = 'all';
+      state.filters.letter = 'ALL';
+      document.getElementById('searchInput').value = '';
+      document.getElementById('clearSearchBtn').classList.add('hidden');
+      setStatusFilter('all');
+      renderActiveTabsAndSpotlight();
+      renderLaneBar();
+      renderAlphabetBar();
+      renderChampionsView();
+    }
+
+    /**
+     * MODAL DE EDIÇÃO PERSONALIZADA DE ROTAS DO CAMPEÃO
+     */
+    function openEditLaneModal(champId) {
+      const champ = state.champions.find((c) => c.id === champId);
+      if (!champ) return;
+
+      state.editingChampionId = champId;
+      document.getElementById('editLaneModalTitle').textContent = `Rotas de ${champ.name}`;
+
+      const imgEl = document.getElementById('editLaneChampImg');
+      imgEl.src = `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/${champ.imageFull}`;
+      imgEl.onerror = function () {
+        this.onerror = null;
+        this.src = `https://placehold.co/80x80/091428/C89B3C?text=${encodeURIComponent(champ.name.slice(0, 3))}`;
+      };
+
+      const container = document.getElementById('editLaneCheckboxes');
+      container.innerHTML = LANES_CONFIG.map((lane) => {
+        const checked = champ.lanes.includes(lane.key);
+        return `
+          <label class="flex items-center justify-between p-3 rounded-xl bg-hextech-bg border border-hextech-gold/30 hover:border-hextech-cyan cursor-pointer transition">
+            <div class="flex items-center gap-2.5">
+              <span class="text-hextech-cyan">${lane.svg}</span>
+              <span class="font-display font-bold text-sm text-hextech-goldLight">${lane.label}</span>
+            </div>
+            <input
+              type="checkbox"
+              value="${lane.key}"
+              ${checked ? 'checked' : ''}
+              class="w-4 h-4 accent-[#0AC8B9] rounded cursor-pointer"
+            />
+          </label>
+        `;
+      }).join('');
+
+      const modal = document.getElementById('editLaneModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeEditLaneModal() {
+      state.editingChampionId = null;
+      const modal = document.getElementById('editLaneModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.getElementById('editLaneModal').addEventListener('click', (e) => {
+      if (e.target.id === 'editLaneModal') closeEditLaneModal();
+    });
+
+    function saveEditedChampionLanes() {
+      const champId = state.editingChampionId;
+      if (!champId) return;
+
+      const checkboxes = document.querySelectorAll('#editLaneCheckboxes input[type="checkbox"]:checked');
+      const selectedLanes = Array.from(checkboxes).map((cb) => cb.value);
+
+      if (selectedLanes.length === 0) {
+        showToast('Selecione pelo menos 1 rota para o campeão.');
+        return;
+      }
+
+      const defaultLanes = DEFAULT_LANES_DICT[champId] || [];
+      const isSameAsDefault =
+        selectedLanes.length === defaultLanes.length &&
+        selectedLanes.every((l) => defaultLanes.includes(l));
+
+      if (isSameAsDefault) {
+        delete state.customLanes[champId];
+      } else {
+        state.customLanes[champId] = selectedLanes;
+      }
+
+      saveState();
+      renderAll();
+      const champ = state.champions.find((c) => c.id === champId);
+      closeEditLaneModal();
+      showToast(`Rotas de ${champ ? champ.name : 'campeão'} atualizadas!`);
+    }
+
+    function restoreDefaultLanesForEditingChamp() {
+      const champId = state.editingChampionId;
+      if (!champId) return;
+      delete state.customLanes[champId];
+      saveState();
+      renderAll();
+      const champ = state.champions.find((c) => c.id === champId);
+      closeEditLaneModal();
+      showToast(`Rotas padrão de ${champ ? champ.name : 'campeão'} restauradas.`);
+    }
+
+    /**
+     * CONTROLE DE SOM
+     */
+    function updateSoundIcons() {
+      document.getElementById('soundOnIcon').classList.toggle('hidden', !state.soundEnabled);
+      document.getElementById('soundOffIcon').classList.toggle('hidden', state.soundEnabled);
+    }
+
+    document.getElementById('soundToggleBtn').addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      saveState();
+      updateSoundIcons();
+      if (state.soundEnabled) playHextechSound('check');
+      showToast(state.soundEnabled ? 'Efeitos sonoros ativados' : 'Efeitos sonoros silenciados');
+    });
+
+    /**
+     * MODAL DE EXPORTAÇÃO / IMPORTAÇÃO / RESET (SINCRONIZAÇÃO SEM BACKEND)
+     */
+    function encodeBase64Unicode(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    function decodeBase64Unicode(base64) {
+      return decodeURIComponent(escape(atob(base64)));
+    }
+
+    function openSyncModal() {
+      const modal = document.getElementById('syncModal');
+      const select = document.getElementById('exportModeSelect');
+
+      // Atualiza rótulos do select com os nomes atuais dos jogadores
+      select.options[0].text = `Apenas ${state.players.p1.name} (Jogador 1)`;
+      select.options[1].text = `Apenas ${state.players.p2.name} (Jogador 2)`;
+      select.value = state.activePlayer;
+
+      document.getElementById('importCodeTextarea').value = '';
+      hideResetConfirmation();
+      updateExportCode();
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSyncModal() {
+      const modal = document.getElementById('syncModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.getElementById('openSyncModalBtn').addEventListener('click', openSyncModal);
+    document.getElementById('syncModal').addEventListener('click', (e) => {
+      if (e.target.id === 'syncModal') closeSyncModal();
+    });
+
+    function updateExportCode() {
+      const mode = document.getElementById('exportModeSelect').value;
+      let payload;
+
+      if (mode === 'full') {
+        payload = {
+          type: 'full',
+          p1: state.players.p1,
+          p2: state.players.p2,
+          customLanes: state.customLanes
+        };
+      } else {
+        payload = {
+          type: 'single',
+          player: state.players[mode],
+          customLanes: state.customLanes
+        };
+      }
+
+      const encoded = encodeBase64Unicode(JSON.stringify(payload));
+      document.getElementById('exportCodeTextarea').value = encoded;
+    }
+
+    function copyExportCode() {
+      const textarea = document.getElementById('exportCodeTextarea');
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+
+      try {
+        document.execCommand('copy');
+        showToast('Código copiado! Cole no Discord ou WhatsApp.');
+      } catch (err) {
+        showToast('Selecione e copie o código manualmente.');
+      }
+    }
+
+    function importProgressCode(targetPlayerKey) {
+      const rawCode = document.getElementById('importCodeTextarea').value.trim();
+      if (!rawCode) {
+        showToast('Cole um código válido antes de importar.');
+        return;
+      }
+
+      try {
+        // Aceita tanto Base64 quanto JSON puro
+        const jsonString = rawCode.startsWith('{') ? rawCode : decodeBase64Unicode(rawCode);
+        const data = JSON.parse(jsonString);
+
+        if (data.type === 'full' && data.p1 && data.p2) {
+          state.players.p1 = {
+            name: String(data.p1.name || 'Você').slice(0, 24),
+            completed: Array.isArray(data.p1.completed) ? data.p1.completed : []
+          };
+          state.players.p2 = {
+            name: String(data.p2.name || 'Amigo').slice(0, 24),
+            completed: Array.isArray(data.p2.completed) ? data.p2.completed : []
+          };
+          if (data.customLanes && typeof data.customLanes === 'object') {
+            state.customLanes = { ...state.customLanes, ...data.customLanes };
+          }
+          saveState();
+          renderAll();
+          closeSyncModal();
+          showToast('Backup completo importado com sucesso!');
+          return;
+        }
+
+        // Código de jogador único (ou formato simplificado { name, completed })
+        const importedPlayer = data.player || data;
+        if (!importedPlayer || !Array.isArray(importedPlayer.completed)) {
+          throw new Error('Formato inválido');
+        }
+
+        state.players[targetPlayerKey] = {
+          name: String(importedPlayer.name || state.players[targetPlayerKey].name).slice(0, 24),
+          completed: importedPlayer.completed
+        };
+        if (data.customLanes && typeof data.customLanes === 'object') {
+          state.customLanes = { ...state.customLanes, ...data.customLanes };
+        }
+
+        saveState();
+        renderAll();
+        closeSyncModal();
+        showToast(`Progresso de ${state.players[targetPlayerKey].name} atualizado!`);
+      } catch (err) {
+        showToast('Código inválido ou corrompido. Verifique e tente novamente.');
+      }
+    }
+
+    /**
+     * CONFIRMAÇÃO DE RESET (2 ETAPAS SEM WINDOW.CONFIRM)
+     */
+    function showResetConfirmation() {
+      document.getElementById('resetStep1').classList.add('hidden');
+      document.getElementById('resetStep2').classList.remove('hidden');
+    }
+
+    function hideResetConfirmation() {
+      document.getElementById('resetStep1').classList.remove('hidden');
+      document.getElementById('resetStep2').classList.add('hidden');
+    }
+
+    function executeReset(scope) {
+      if (scope === 'active') {
+        state.players[state.activePlayer].completed = [];
+        showToast(`Progresso de ${state.players[state.activePlayer].name} zerado.`);
+      } else {
+        state.players.p1.completed = [];
+        state.players.p2.completed = [];
+        showToast('Progresso de ambos os jogadores zerado.');
+      }
+
+      saveState();
+      renderAll();
+      closeSyncModal();
+    }
+
+    /**
+     * SISTEMA DE NOTIFICAÇÃO TOAST
+     */
+    let toastTimer = null;
+    function showToast(message) {
+      const box = document.getElementById('toastBox');
+      const msgEl = document.getElementById('toastMessage');
+
+      msgEl.textContent = message;
+      box.classList.remove('opacity-0', 'translate-y-3', 'pointer-events-none');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        box.classList.add('opacity-0', 'translate-y-3', 'pointer-events-none');
+      }, 2800);
+    }
+
+    /**
+     * INICIALIZAÇÃO DA APLICAÇÃO
+     */
+    async function initApp() {
+      loadSavedState();
+      await fetchChampionsFromRiot();
+      renderAll();
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
